@@ -42,24 +42,32 @@ class MobileProvision(object):
             )
 
         provision_dict = None
-        with open(provision_file_path) as provision_file:
-            provision_data = provision_file.read()
+        provision_data = None
+        fileName, fileExtension = os.path.splitext(provision_file_path)
+        if fileExtension == ".ipa":
+            import zipfile
+            with zipfile.ZipFile(provision_file_path, 'r') as ipa:
+                provision_zipinfo = filter(lambda info : info.filename.endswith('embedded.mobileprovision'), ipa.infolist())[0]
+                provision_data = ipa.read(provision_zipinfo)
+        else:
+            with open(provision_file_path) as provision_file:
+                provision_data = provision_file.read()
 
-            start_tag = '<?xml version="1.0" encoding="UTF-8"?>'
-            stop_tag = '</plist>'
+        start_tag = '<?xml version="1.0" encoding="UTF-8"?>'
+        stop_tag = '</plist>'
 
-            try:
-                start_index = provision_data.index(start_tag)
-                stop_index = provision_data.index(
-                    stop_tag, start_index + len(start_tag)
-                ) + len(stop_tag)
-            except ValueError:
-                raise MobileProvisionReadException(
-                    'This is not a valid mobile provision file'
-                )
+        try:
+            start_index = provision_data.index(start_tag)
+            stop_index = provision_data.index(
+                stop_tag, start_index + len(start_tag)
+            ) + len(stop_tag)
+        except ValueError:
+            raise MobileProvisionReadException(
+                'This is not a valid mobile provision file'
+            )
 
-            plist_data = provision_data[start_index:stop_index]
-            provision_dict = plistlib.readPlistFromString(plist_data)
+        plist_data = provision_data[start_index:stop_index]
+        provision_dict = plistlib.readPlistFromString(plist_data)
 
         self.name = provision_dict['Name']
         self.uuid = provision_dict['UUID']
